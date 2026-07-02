@@ -13,33 +13,35 @@ jobs:
       with:
         ndk-version: r25c
 
-    - name: Compile
+    - name: Compile All ABIs
       run: |
         TOOLCHAIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
         GLUE=$ANDROID_NDK_ROOT/sources/android/native_app_glue
-        # Флаги -lm (математика) и пути к заголовкам
-        FLAGS="-O2 -s -fPIC -shared -I. -I$GLUE -landroid -llog -lGLESv2 -lEGL -lm"
+        FLAGS="-O3 -s -fPIC -shared -I. -I$GLUE -landroid -llog -lGLESv2 -lEGL -lm"
         
-        echo "Compiling ARM64..."
+        # Собираем под 3 основные архитектуры
         $TOOLCHAIN/aarch64-linux-android21-clang main.c $GLUE/android_native_app_glue.c -o libmain_64.so $FLAGS
-        
-        echo "Compiling ARM32..."
         $TOOLCHAIN/armv7a-linux-androideabi21-clang main.c $GLUE/android_native_app_glue.c -o libmain_32.so $FLAGS
+        $TOOLCHAIN/x86_64-linux-android21-clang main.c $GLUE/android_native_app_glue.c -o libmain_x86.so $FLAGS
 
     - name: Package APK
       run: |
-        mkdir -p staging/lib/arm64-v8a staging/lib/armeabi-v7a staging/assets
+        mkdir -p staging/lib/arm64-v8a staging/lib/armeabi-v7a staging/lib/x86_64
         cp libmain_64.so staging/lib/arm64-v8a/libmain.so
         cp libmain_32.so staging/lib/armeabi-v7a/libmain.so
+        cp libmain_x86.so staging/lib/x86_64/libmain.so
         
         BT=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
         PLATFORM=$(ls -d $ANDROID_HOME/platforms/android-* | tail -1)/android.jar
         
+        # Важно: используем правильные флаги для aapt
         $BT/aapt package -f -M AndroidManifest.xml -I $PLATFORM -F unsigned.apk staging/
         $BT/zipalign -f 4 unsigned.apk Geometrium_aligned.apk
         
+        # Генерируем ключ
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android,O=Android,C=US"
         
+        # Подписываем
         $BT/apksigner sign --ks debug.keystore --ks-pass pass:android --out Geometrium.apk Geometrium_aligned.apk
 
     - name: Upload Result

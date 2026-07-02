@@ -26,7 +26,9 @@ static void on_cmd(struct android_app* app, int32_t cmd) {
 void android_main(struct android_app* state) {
     struct engine eng = {0};
     eng.app = state; eng.camPos[1] = 1.7f; eng.movePointerId = -1; eng.lookPointerId = -1;
-    state->userData = &eng; state->onAppCmd = on_cmd; state->onInputEvent = handle_input;
+    state->userData = &eng; 
+    state->onAppCmd = on_cmd; 
+    state->onInputEvent = handle_input;
 
     while (1) {
         int evs; struct android_poll_source* src;
@@ -40,14 +42,12 @@ void android_main(struct android_app* state) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (eng.gameState == STATE_PLAYING) {
-                // Физика (Roblox-style)
-                eng.velY -= 0.008; eng.camPos[1] += eng.velY;
-                if (eng.camPos[1] < 1.7) { eng.camPos[1] = 1.7; eng.velY = 0; eng.onGround = true; }
+                eng.velY -= 0.008f; eng.camPos[1] += eng.velY;
+                if (eng.camPos[1] < 1.7f) { eng.camPos[1] = 1.7f; eng.velY = 0; eng.onGround = true; }
                 float s = sinf(eng.camRot[1]), c = cosf(eng.camRot[1]);
-                eng.camPos[0] += (c * eng.moveDirX + s * eng.moveDirZ) * 0.12;
-                eng.camPos[2] += (s * eng.moveDirX - c * eng.moveDirZ) * 0.12;
+                eng.camPos[0] += (c * eng.moveDirX + s * eng.moveDirZ) * 0.12f;
+                eng.camPos[2] += (s * eng.moveDirX - c * eng.moveDirZ) * 0.12f;
 
-                // Рендер мира
                 glEnable(GL_DEPTH_TEST);
                 glUseProgram(eng.program);
                 float p[16], v[16], pv[16], m[16], mvp[16];
@@ -55,9 +55,8 @@ void android_main(struct android_app* state) {
                 mat4_lookat(v, eng.camPos, eng.camRot[0], eng.camRot[1]);
                 mat4_mul(pv, p, v);
 
-                // Рисуем платформу 10x10
                 for(int x=-5; x<=5; x++) for(int z=-5; z<=5; z++) {
-                    mat4_identity(m); m[12]=x; m[13]=0; m[14]=z;
+                    mat4_identity(m); m[12]=(float)x; m[13]=0; m[14]=(float)z;
                     mat4_mul(mvp, pv, m);
                     glUniformMatrix4fv(glGetUniformLocation(eng.program, "m"), 1, GL_FALSE, mvp);
                     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, cube_vertices);
@@ -67,10 +66,10 @@ void android_main(struct android_app* state) {
                     glDrawArrays(GL_TRIANGLES, 0, 36);
                 }
                 glDisable(GL_DEPTH_TEST);
-                draw_ui_box(&eng, 200, eng.height-200, 70, 70, 1,1,1, 0.3); // Стик
-                draw_ui_box(&eng, eng.width-150, eng.height-150, 50, 50, 1,0,0, 0.5); // Прыжок
+                draw_ui_box(&eng, 200, eng.height-200, 70, 70, 1,1,1, 0.3f);
+                draw_ui_box(&eng, eng.width-150, eng.height-150, 50, 50, 1,0,0, 0.5f);
             } else {
-                draw_ui_box(&eng, eng.width/2, eng.height/2, 150, 60, 0.1, 0.8, 0.1, 1.0); // Кнопка Play
+                draw_ui_box(&eng, eng.width/2.0f, eng.height/2.0f, 150, 60, 0.1f, 0.8f, 0.1f, 1.0f);
             }
             eglSwapBuffers(eng.display, eng.surface);
         }

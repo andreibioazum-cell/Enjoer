@@ -8,45 +8,38 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # Используем предустановленный NDK для мгновенного старта
     - name: Setup NDK
       uses: nttld/setup-ndk@v1
       with:
         ndk-version: r25c
 
-    - name: Fast Compile
+    - name: Compile
       run: |
-        # Определяем пути к компиляторам и клею (native_app_glue)
         TOOLCHAIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
         GLUE=$ANDROID_NDK_ROOT/sources/android/native_app_glue
+        # Флаги -lm (математика) и пути к заголовкам
+        FLAGS="-O2 -s -fPIC -shared -I. -I$GLUE -landroid -llog -lGLESv2 -lEGL -lm"
         
-        # Флаги оптимизации: -Ofast и -pipe для скорости, -s для уменьшения веса
-        FLAGS="-Ofast -pipe -s -fPIC -shared -I. -I$GLUE -landroid -llog -lGLESv2 -lEGL -lm"
+        echo "Compiling ARM64..."
+        $TOOLCHAIN/aarch64-linux-android21-clang main.c $GLUE/android_native_app_glue.c -o libmain_64.so $FLAGS
         
-        # Компилируем сразу в две архитектуры (параллельно через &)
-        $TOOLCHAIN/aarch64-linux-android21-clang main.c $GLUE/android_native_app_glue.c -o libmain_64.so $FLAGS &
-        $TOOLCHAIN/armv7a-linux-androideabi21-clang main.c $GLUE/android_native_app_glue.c -o libmain_32.so $FLAGS &
-        wait
+        echo "Compiling ARM32..."
+        $TOOLCHAIN/armv7a-linux-androideabi21-clang main.c $GLUE/android_native_app_glue.c -o libmain_32.so $FLAGS
 
-    - name: Package APK (Super Fast)
+    - name: Package APK
       run: |
-        # Создаем структуру папок
         mkdir -p staging/lib/arm64-v8a staging/lib/armeabi-v7a staging/assets
-        mv libmain_64.so staging/lib/arm64-v8a/libmain.so
-        mv libmain_32.so staging/lib/armeabi-v7a/libmain.so
+        cp libmain_64.so staging/lib/arm64-v8a/libmain.so
+        cp libmain_32.so staging/lib/armeabi-v7a/libmain.so
         
-        # Находим путь к build-tools (берем последнюю версию из имеющихся)
         BT=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
         PLATFORM=$(ls -d $ANDROID_HOME/platforms/android-* | tail -1)/android.jar
         
-        # Сборка пакета без лишних проверок
         $BT/aapt package -f -M AndroidManifest.xml -I $PLATFORM -F unsigned.apk staging/
         $BT/zipalign -f 4 unsigned.apk Geometrium_aligned.apk
         
-        # Быстрая генерация ключа (однострочник)
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android,O=Android,C=US"
         
-        # Подпись
         $BT/apksigner sign --ks debug.keystore --ks-pass pass:android --out Geometrium.apk Geometrium_aligned.apk
 
     - name: Upload Result

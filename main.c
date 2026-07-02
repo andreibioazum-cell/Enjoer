@@ -32,7 +32,8 @@ void android_main(struct android_app* state) {
 
     while (1) {
         int evs; struct android_poll_source* src;
-        while (ALooper_pollAll(eng.gameState == STATE_PLAYING ? 0 : -1, NULL, &evs, (void**)&src) >= 0) {
+        // ЗАМЕНЕНО: ALooper_pollOnce вместо ALooper_pollAll
+        while (ALooper_pollOnce(eng.gameState == STATE_PLAYING ? 0 : -1, NULL, &evs, (void**)&src) >= 0) {
             if (src) src->process(state, src);
             if (state->destroyRequested) return;
         }
@@ -61,13 +62,13 @@ void android_main(struct android_app* state) {
                     glUniformMatrix4fv(glGetUniformLocation(eng.program, "m"), 1, GL_FALSE, mvp);
                     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, cube_vertices);
                     glEnableVertexAttribArray(0);
-                    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, cube_vertices+3);
+                    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, (float*)cube_vertices + 3);
                     glEnableVertexAttribArray(1);
                     glDrawArrays(GL_TRIANGLES, 0, 36);
                 }
                 glDisable(GL_DEPTH_TEST);
-                draw_ui_box(&eng, 200, eng.height-200, 70, 70, 1,1,1, 0.3f);
-                draw_ui_box(&eng, eng.width-150, eng.height-150, 50, 50, 1,0,0, 0.5f);
+                draw_ui_box(&eng, 200, eng.height-200, 70, 70, 1.0f, 1.0f, 1.0f, 0.3f);
+                draw_ui_box(&eng, eng.width-150, eng.height-150, 50, 50, 1.0f, 0.0f, 0.0f, 0.5f);
             } else {
                 draw_ui_box(&eng, eng.width/2.0f, eng.height/2.0f, 150, 60, 0.1f, 0.8f, 0.1f, 1.0f);
             }
